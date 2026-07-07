@@ -1,6 +1,9 @@
 BEGIN:VCARD
 VERSION:3.0
-N:23;Pendiente;;;
-FN:Pendiente 23
+N:Bracamonte Teddy;Alexia;;;
+FN:Alexia Bracamonte Teddy
 ORG:Destino Arena - Embajador
+TEL;TYPE=CELL:
+EMAIL;TYPE=INTERNET:
+URL;TYPE=Instagram:
 END:VCARD
