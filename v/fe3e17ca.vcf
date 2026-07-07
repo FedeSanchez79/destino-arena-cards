@@ -1,6 +1,9 @@
 BEGIN:VCARD
 VERSION:3.0
-N:20;Pendiente;;;
-FN:Pendiente 20
+N:Torres;Tobias;;;
+FN:Tobias Torres
 ORG:Destino Arena - Embajador
+TEL;TYPE=CELL:
+EMAIL;TYPE=INTERNET:
+URL;TYPE=Instagram:https://www.instagram.com/toototorresok/
 END:VCARD
