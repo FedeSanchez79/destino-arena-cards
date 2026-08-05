@@ -1,6 +1,9 @@
 BEGIN:VCARD
 VERSION:3.0
-N:27;Pendiente;;;
-FN:Pendiente 27
+N:Gomez;Marianela;;;
+FN:Marianela Gomez
 ORG:Destino Arena - Embajador
+TEL;TYPE=CELL:2233015497
+EMAIL;TYPE=INTERNET:mariaangomeez@gmail.com
+URL;TYPE=Instagram:https://www.instagram.com/mariaangomeez/
 END:VCARD
