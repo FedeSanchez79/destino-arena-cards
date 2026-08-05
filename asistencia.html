@@ -53,12 +53,32 @@ body{font-family:-apple-system,'Inter',sans-serif;background:var(--bg);color:var
 
 .att-list{padding:0 16px;display:flex;flex-direction:column;gap:8px;padding-bottom:170px;}
 .att-empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.8;}
-.att-item{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border-radius:12px;border:1px solid var(--hairline);animation:slideIn .25s ease-out;}
+
+/* ── ITEM ── */
+.att-item{background:var(--card);border-radius:14px;border:1px solid var(--hairline);overflow:hidden;animation:slideIn .25s ease-out;}
 @keyframes slideIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.item-row{display:flex;align-items:center;gap:10px;padding:12px 10px 12px 14px;}
 .i-num{font-size:11px;color:var(--muted);min-width:22px;text-align:right;}
 .i-name{flex:1;font-size:15px;font-weight:600;}
 .i-time{font-size:11px;color:var(--muted);}
+.guest-toggle{background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);border-radius:999px;color:var(--glow);font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.guest-toggle.has-guests{background:rgba(139,92,246,.25);border-color:var(--purple);}
 
+/* ── GUEST SECTION ── */
+.guest-section{border-top:1px solid var(--hairline);padding:10px 14px 12px;display:none;flex-direction:column;gap:8px;}
+.guest-section.open{display:flex;}
+.guest-list{display:flex;flex-direction:column;gap:5px;}
+.guest-item{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(139,92,246,.08);border-radius:8px;}
+.g-dot{width:6px;height:6px;background:var(--purple);border-radius:50%;flex-shrink:0;}
+.g-name{flex:1;font-size:13px;color:var(--white);}
+.g-del{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px;line-height:1;}
+.g-del:active{color:var(--red);}
+.guest-input-row{display:flex;gap:8px;margin-top:4px;}
+.guest-input{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--hairline);border-radius:10px;padding:9px 12px;color:var(--white);font-size:14px;outline:none;}
+.guest-input:focus{border-color:var(--purple);}
+.guest-add{background:var(--purple);border:none;border-radius:10px;color:#fff;font-size:20px;font-weight:300;width:40px;cursor:pointer;flex-shrink:0;}
+
+/* ── BOTTOM ── */
 .bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;padding:14px 20px 32px;background:linear-gradient(to top,var(--bg) 65%,transparent);z-index:10;display:flex;flex-direction:column;gap:10px;}
 .export-row{display:flex;gap:10px;}
 .btn-xl{flex:1;padding:15px;border:none;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
@@ -88,16 +108,11 @@ body{font-family:-apple-system,'Inter',sans-serif;background:var(--bg);color:var
     <div class="s-count" id="hdrCount">0 registrados</div>
   </div>
 
-  <div class="cam-wrap">
-    <div id="qr-reader"></div>
-  </div>
+  <div class="cam-wrap"><div id="qr-reader"></div></div>
 
   <div class="result-box" id="resultBox">
     <span class="r-icon" id="rIcon"></span>
-    <div>
-      <div class="r-name" id="rName"></div>
-      <div class="r-sub" id="rSub"></div>
-    </div>
+    <div><div class="r-name" id="rName"></div><div class="r-sub" id="rSub"></div></div>
   </div>
 
   <div class="list-hdr">
@@ -118,16 +133,17 @@ body{font-family:-apple-system,'Inter',sans-serif;background:var(--bg);color:var
 </div>
 
 <script>
-const SESS_KEY = 'da_asistencia_v1';
+const SESS_KEY  = 'da_asistencia_v2';
 const CACHE_KEY = 'da_name_cache_v1';
 
-let attendance = [];
-let eventName = '';
-let scanner = null;
-let lastScan = 0;
-let rTimer = null;
+let attendance = [];   // [{code, name, time, guests:[]}]
+let eventName  = '';
+let scanner    = null;
+let lastScan   = 0;
+let rTimer     = null;
+let expanded   = new Set();   // codes whose guest section is open
 
-// ── INIT ──────────────────────────────────────────────────
+// ── INIT ─────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   const saved = getSaved();
   if (saved) {
@@ -146,17 +162,16 @@ function getSaved() {
 function startNew() {
   const name = document.getElementById('eventInput').value.trim();
   if (!name) { document.getElementById('eventInput').focus(); return; }
-  eventName = name;
-  attendance = [];
-  save();
-  showScanner();
+  eventName = name; attendance = []; expanded = new Set();
+  save(); showScanner();
 }
 
 function resumeSession() {
   const saved = getSaved();
   if (!saved) return;
   eventName = saved.eventName;
-  attendance = saved.attendance;
+  attendance = (saved.attendance || []).map(a => ({ ...a, guests: a.guests || [] }));
+  expanded = new Set();
   showScanner();
 }
 
@@ -165,20 +180,18 @@ function showScanner() {
   const sc = document.getElementById('scannerScreen');
   sc.style.display = 'flex';
   document.getElementById('hdrEvent').textContent = eventName;
-  renderList();
-  initCam();
+  renderList(); initCam();
 }
 
-// ── CAMERA ────────────────────────────────────────────────
+// ── CAMERA ───────────────────────────────────────────────
 function initCam() {
   if (scanner) return;
   scanner = new Html5Qrcode('qr-reader');
   scanner.start(
     { facingMode: 'environment' },
     { fps: 10, qrbox: { width: 240, height: 240 } },
-    onScan,
-    null
-  ).catch(err => console.warn('Cam error:', err));
+    onScan, null
+  ).catch(err => console.warn('Cam:', err));
 }
 
 async function onScan(text) {
@@ -186,32 +199,24 @@ async function onScan(text) {
   if (now - lastScan < 2500) return;
   lastScan = now;
 
-  // Validate pattern
   const m = text.match(/\/v\/([a-f0-9]{8})\.html/i);
   if (!m) {
-    showResult('err', '⚠️', 'QR no reconocido', 'No pertenece al sistema Destino Arena');
-    vibrate([80, 40, 80]);
-    return;
+    showResult('err','⚠️','QR no reconocido','No pertenece al sistema Destino Arena');
+    vibrate([80,40,80]); return;
   }
   const code = m[1];
-
-  // Check duplicate
   const dup = attendance.find(a => a.code === code);
   if (dup) {
-    showResult('dup', '⚠️', dup.name, `Ya ingresó a las ${dup.time}`);
-    vibrate([80, 40, 80]);
-    return;
+    showResult('dup','⚠️',dup.name,`Ya ingresó a las ${dup.time}`);
+    vibrate([80,40,80]); return;
   }
 
-  // Fetch name
-  showResult('ok', '⏳', 'Identificando...', '');
+  showResult('ok','⏳','Identificando...','');
   const name = await fetchName(code, text);
-  const time = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-
-  attendance.unshift({ code, name, time });
-  save();
-  renderList();
-  showResult('ok', '✅', name, `Ingresó a las ${time}`);
+  const time = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  attendance.unshift({ code, name, time, guests: [] });
+  save(); renderList();
+  showResult('ok','✅',name,`Ingresó a las ${time}`);
   vibrate([200]);
 }
 
@@ -219,10 +224,9 @@ async function fetchName(code, originalUrl) {
   const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
   if (cache[code]) return cache[code];
   try {
-    const vcfUrl = originalUrl.replace(/\.html$/i, '.vcf');
-    const res = await fetch(vcfUrl);
+    const res = await fetch(originalUrl.replace(/\.html$/i,'.vcf'));
     const txt = await res.text();
-    const fn = txt.match(/^FN:(.+)$/m);
+    const fn  = txt.match(/^FN:(.+)$/m);
     const name = fn ? fn[1].trim() : `ID ${code}`;
     cache[code] = name;
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
@@ -230,7 +234,99 @@ async function fetchName(code, originalUrl) {
   } catch { return `ID ${code}`; }
 }
 
-// ── UI ────────────────────────────────────────────────────
+// ── GUESTS ───────────────────────────────────────────────
+function toggleGuests(code) {
+  expanded.has(code) ? expanded.delete(code) : expanded.add(code);
+  renderList();
+  if (expanded.has(code)) {
+    setTimeout(() => {
+      const inp = document.getElementById(`ginput-${code}`);
+      if (inp) inp.focus();
+    }, 50);
+  }
+}
+
+function addGuest(code) {
+  const inp = document.getElementById(`ginput-${code}`);
+  const name = inp ? inp.value.trim() : '';
+  if (!name) return;
+  const entry = attendance.find(a => a.code === code);
+  if (!entry) return;
+  entry.guests.push(name);
+  inp.value = '';
+  save(); renderList();
+  expanded.add(code);
+  setTimeout(() => {
+    const newInp = document.getElementById(`ginput-${code}`);
+    if (newInp) newInp.focus();
+  }, 50);
+}
+
+function removeGuest(code, idx) {
+  const entry = attendance.find(a => a.code === code);
+  if (!entry) return;
+  entry.guests.splice(idx, 1);
+  save(); renderList();
+  expanded.add(code);
+}
+
+function handleGuestKey(event, code) {
+  if (event.key === 'Enter') addGuest(code);
+}
+
+// ── RENDER ───────────────────────────────────────────────
+function renderList() {
+  const n = attendance.length;
+  const totalGuests = attendance.reduce((s,a) => s + (a.guests||[]).length, 0);
+  let countTxt = `${n} registrado${n!==1?'s':''}`;
+  if (totalGuests > 0) countTxt += ` + ${totalGuests} inv.`;
+  document.getElementById('hdrCount').textContent = countTxt;
+
+  const el = document.getElementById('attList');
+  if (n === 0) {
+    el.innerHTML = '<div class="att-empty">Apuntá la cámara al QR<br>del asistente para registrarlo</div>';
+    return;
+  }
+
+  el.innerHTML = attendance.map((a, i) => {
+    const guests = a.guests || [];
+    const isOpen = expanded.has(a.code);
+    const btnLabel = guests.length > 0 ? `👥 ${guests.length}` : '+ Invitado';
+    const btnClass = guests.length > 0 ? 'guest-toggle has-guests' : 'guest-toggle';
+
+    const guestItems = guests.map((g, gi) => `
+      <div class="guest-item">
+        <span class="g-dot"></span>
+        <span class="g-name">${esc(g)}</span>
+        <button class="g-del" onclick="removeGuest('${a.code}',${gi})">×</button>
+      </div>`).join('');
+
+    return `
+    <div class="att-item">
+      <div class="item-row">
+        <span class="i-num">${n - i}</span>
+        <span class="i-name">${esc(a.name)}</span>
+        <span class="i-time">${a.time}</span>
+        <button class="${btnClass}" onclick="toggleGuests('${a.code}')">${btnLabel}</button>
+      </div>
+      <div class="guest-section${isOpen?' open':''}">
+        ${guestItems ? `<div class="guest-list">${guestItems}</div>` : ''}
+        <div class="guest-input-row">
+          <input class="guest-input" id="ginput-${a.code}"
+            placeholder="Nombre del invitado"
+            onkeydown="handleGuestKey(event,'${a.code}')">
+          <button class="guest-add" onclick="addGuest('${a.code}')">+</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── RESULT / VIBRATE ─────────────────────────────────────
 function showResult(type, icon, name, sub) {
   const box = document.getElementById('resultBox');
   box.className = `result-box show ${type}`;
@@ -241,96 +337,85 @@ function showResult(type, icon, name, sub) {
   rTimer = setTimeout(() => box.classList.remove('show'), 4500);
 }
 
-function renderList() {
-  const n = attendance.length;
-  document.getElementById('hdrCount').textContent = `${n} registrado${n !== 1 ? 's' : ''}`;
-  const el = document.getElementById('attList');
-  if (n === 0) {
-    el.innerHTML = '<div class="att-empty">Apuntá la cámara al QR<br>del asistente para registrarlo</div>';
-    return;
-  }
-  el.innerHTML = attendance.map((a, i) => `
-    <div class="att-item">
-      <span class="i-num">${n - i}</span>
-      <span class="i-name">${a.name}</span>
-      <span class="i-time">${a.time}</span>
-    </div>`).join('');
-}
-
 function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
 
-// ── PERSISTENCE ───────────────────────────────────────────
+// ── PERSISTENCE ──────────────────────────────────────────
 function save() {
   localStorage.setItem(SESS_KEY, JSON.stringify({ eventName, attendance }));
 }
 
-// ── EXPORT EXCEL ──────────────────────────────────────────
+// ── EXPORT EXCEL ─────────────────────────────────────────
 function exportExcel() {
   if (!attendance.length) return alert('No hay asistentes registrados todavía.');
-  const rows = [['#', 'Nombre', 'Hora de ingreso']];
-  [...attendance].reverse().forEach((a, i) => rows.push([i + 1, a.name, a.time]));
+  const rows = [['#','Nombre','Hora de ingreso','Tipo']];
+  let num = 1;
+  [...attendance].reverse().forEach(a => {
+    rows.push([num++, a.name, a.time, 'Titular']);
+    (a.guests||[]).forEach(g => rows.push(['', g, '', 'Invitado']));
+  });
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 5 }, { wch: 34 }, { wch: 16 }];
+  ws['!cols'] = [{wch:5},{wch:34},{wch:16},{wch:10}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
   XLSX.writeFile(wb, `Asistencia_${safe(eventName)}.xlsx`);
 }
 
-// ── EXPORT PDF ────────────────────────────────────────────
+// ── EXPORT PDF ───────────────────────────────────────────
 function exportPDF() {
   if (!attendance.length) return alert('No hay asistentes registrados todavía.');
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  doc.setFillColor(10,7,16); doc.rect(0,0,210,297,'F');
+  doc.setTextColor(196,181,253); doc.setFontSize(9);
+  doc.text('ONLY BY DESTINO ARENA',105,16,{align:'center'});
+  doc.setTextColor(247,245,251); doc.setFontSize(20); doc.setFont(undefined,'bold');
+  doc.text('Lista de Asistencia',105,26,{align:'center'});
+  doc.setFontSize(11); doc.setFont(undefined,'normal'); doc.setTextColor(147,138,163);
+  doc.text(eventName,105,34,{align:'center'});
+  const totalGuests = attendance.reduce((s,a)=>s+(a.guests||[]).length,0);
+  const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  doc.text(`${attendance.length} titular${attendance.length!==1?'es':''} · ${totalGuests} invitado${totalGuests!==1?'s':''} · ${fecha}`,105,41,{align:'center'});
 
-  doc.setFillColor(10, 7, 16);
-  doc.rect(0, 0, 210, 297, 'F');
+  const rows = [];
+  let num = 1;
+  [...attendance].reverse().forEach(a => {
+    rows.push([num++, a.name, a.time, 'Titular']);
+    (a.guests||[]).forEach(g => rows.push(['', `  ↳ ${g}`, '', 'Invitado']));
+  });
 
-  doc.setTextColor(196, 181, 253);
-  doc.setFontSize(9);
-  doc.text('ONLY BY DESTINO ARENA', 105, 16, { align: 'center' });
-
-  doc.setTextColor(247, 245, 251);
-  doc.setFontSize(20);
-  doc.setFont(undefined, 'bold');
-  doc.text('Lista de Asistencia', 105, 26, { align: 'center' });
-
-  doc.setFontSize(11);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(147, 138, 163);
-  doc.text(eventName, 105, 34, { align: 'center' });
-
-  const fecha = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  doc.text(`${attendance.length} persona${attendance.length !== 1 ? 's' : ''} • Generado el ${fecha}`, 105, 41, { align: 'center' });
-
-  const rows = [...attendance].reverse().map((a, i) => [i + 1, a.name, a.time]);
   doc.autoTable({
-    startY: 48,
-    head: [['#', 'Nombre', 'Hora de ingreso']],
-    body: rows,
-    theme: 'plain',
-    styles: { textColor: [247, 245, 251], fontSize: 10, cellPadding: 3.5 },
-    headStyles: { textColor: [196, 181, 253], fontStyle: 'bold', fontSize: 9, cellPadding: 4 },
-    alternateRowStyles: { fillColor: [22, 16, 31] },
-    columnStyles: { 0: { cellWidth: 12 }, 2: { cellWidth: 30 } },
-    margin: { left: 20, right: 20 },
+    startY:48,
+    head:[['#','Nombre','Hora','Tipo']],
+    body:rows,
+    theme:'plain',
+    styles:{textColor:[247,245,251],fontSize:10,cellPadding:3},
+    headStyles:{textColor:[196,181,253],fontStyle:'bold',fontSize:9,cellPadding:4},
+    alternateRowStyles:{fillColor:[22,16,31]},
+    columnStyles:{0:{cellWidth:12},2:{cellWidth:24},3:{cellWidth:20}},
+    didParseCell: (data) => {
+      if (data.row.raw && data.row.raw[3]==='Invitado') {
+        data.cell.styles.textColor = [147,138,163];
+        data.cell.styles.fontSize  = 9;
+      }
+    },
+    margin:{left:20,right:20},
   });
 
   doc.save(`Asistencia_${safe(eventName)}.pdf`);
 }
 
-function safe(s) { return s.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50); }
+function safe(s){ return s.replace(/[^a-zA-Z0-9]/g,'_').slice(0,50); }
 
-// ── RESET ─────────────────────────────────────────────────
+// ── RESET ────────────────────────────────────────────────
 function resetSession() {
-  if (attendance.length > 0 && !confirm(`¿Borrar la lista de ${attendance.length} persona${attendance.length !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
-  attendance = [];
-  eventName = '';
+  if (attendance.length > 0 && !confirm(`¿Borrar la lista de ${attendance.length} persona${attendance.length!==1?'s':''}? Esta acción no se puede deshacer.`)) return;
+  attendance=[]; eventName=''; expanded=new Set();
   localStorage.removeItem(SESS_KEY);
-  if (scanner) { scanner.stop().catch(() => {}); scanner = null; }
-  document.getElementById('setupScreen').style.display = 'flex';
-  document.getElementById('scannerScreen').style.display = 'none';
-  document.getElementById('eventInput').value = '';
-  document.getElementById('resumeBtn').style.display = 'none';
+  if (scanner){ scanner.stop().catch(()=>{}); scanner=null; }
+  document.getElementById('setupScreen').style.display='flex';
+  document.getElementById('scannerScreen').style.display='none';
+  document.getElementById('eventInput').value='';
+  document.getElementById('resumeBtn').style.display='none';
 }
 </script>
 </body>
