@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Asistencia – Destino Arena</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--bg:#0a0710;--card:#16101f;--card2:#1f1530;--purple:#8b5cf6;--purple-deep:#5b21b6;--glow:#c4b5fd;--white:#f7f5fb;--muted:#938aa3;--green:#22c55e;--yellow:#f59e0b;--red:#ef4444;--hairline:rgba(247,245,251,0.12);}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,'Inter',sans-serif;background:var(--bg);color:var(--white);min-height:100vh;max-width:480px;margin:0 auto;}
+
+/* ── SETUP ── */
+.setup{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;gap:20px;}
+.setup-eyebrow{font-size:11px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;}
+.setup-title{font-size:30px;font-weight:800;text-align:center;line-height:1.1;}
+.setup-title span{color:var(--purple);}
+.setup-card{width:100%;background:var(--card);border:1px solid rgba(139,92,246,.2);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:14px;}
+.setup-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.setup-input{width:100%;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:12px;padding:14px 16px;color:var(--white);font-size:16px;outline:none;}
+.setup-input:focus{border-color:var(--purple);}
+.btn-primary{width:100%;padding:16px;background:linear-gradient(120deg,var(--purple),var(--purple-deep));border:none;border-radius:999px;color:#fff;font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:0 10px 24px -10px rgba(139,92,246,.6);}
+.btn-ghost{width:100%;padding:13px;background:transparent;border:1px solid var(--hairline);border-radius:999px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;}
+
+/* ── SCANNER ── */
+.scanner{display:none;flex-direction:column;min-height:100vh;}
+.s-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--hairline);position:sticky;top:0;background:var(--bg);z-index:20;}
+.s-event{font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.s-count{background:var(--purple);color:#fff;font-size:12px;font-weight:700;padding:5px 14px;border-radius:999px;}
+
+.cam-wrap{background:#000;width:100%;}
+#qr-reader{width:100%!important;}
+#qr-reader video{width:100%!important;display:block;}
+#qr-reader__scan_region{border:none!important;}
+#qr-reader__dashboard{display:none!important;}
+#qr-reader__header_message{display:none!important;}
+#qr-reader img{display:none!important;}
+
+.result-box{margin:12px 16px;padding:14px 18px;border-radius:16px;display:flex;align-items:center;gap:12px;opacity:0;transition:opacity .3s;min-height:62px;}
+.result-box.show{opacity:1;}
+.result-box.ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);}
+.result-box.dup{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);}
+.result-box.err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);}
+.r-icon{font-size:22px;min-width:28px;text-align:center;}
+.r-name{font-size:16px;font-weight:700;line-height:1.2;}
+.r-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+
+.list-hdr{padding:10px 20px 6px;display:flex;justify-content:space-between;align-items:center;}
+.list-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+
+.att-list{padding:0 16px;display:flex;flex-direction:column;gap:8px;padding-bottom:170px;}
+.att-empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.8;}
+.att-item{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border-radius:12px;border:1px solid var(--hairline);animation:slideIn .25s ease-out;}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.i-num{font-size:11px;color:var(--muted);min-width:22px;text-align:right;}
+.i-name{flex:1;font-size:15px;font-weight:600;}
+.i-time{font-size:11px;color:var(--muted);}
+
+.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;padding:14px 20px 32px;background:linear-gradient(to top,var(--bg) 65%,transparent);z-index:10;display:flex;flex-direction:column;gap:10px;}
+.export-row{display:flex;gap:10px;}
+.btn-xl{flex:1;padding:15px;border:none;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.04em;}
+.btn-excel{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.35);color:var(--green);}
+.btn-pdf{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:var(--red);}
+.btn-reset{padding:11px;background:transparent;border:1px solid var(--hairline);border-radius:999px;color:var(--muted);font-size:12px;cursor:pointer;width:100%;}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div class="setup" id="setupScreen">
+  <p class="setup-eyebrow">Only by Destino Arena</p>
+  <h1 class="setup-title">Sistema de<br><span>Asistencia</span></h1>
+  <div class="setup-card">
+    <label class="setup-label">Nombre del evento</label>
+    <input class="setup-input" id="eventInput" type="text" placeholder="Ej: Goom Gum — 10 Oct 2026" autocomplete="off">
+    <button class="btn-primary" onclick="startNew()">Iniciar escaneo →</button>
+  </div>
+  <button class="btn-ghost" id="resumeBtn" style="display:none" onclick="resumeSession()">↩ Retomar sesión anterior</button>
+</div>
+
+<!-- SCANNER -->
+<div class="scanner" id="scannerScreen">
+  <div class="s-header">
+    <div class="s-event" id="hdrEvent">—</div>
+    <div class="s-count" id="hdrCount">0 registrados</div>
+  </div>
+
+  <div class="cam-wrap">
+    <div id="qr-reader"></div>
+  </div>
+
+  <div class="result-box" id="resultBox">
+    <span class="r-icon" id="rIcon"></span>
+    <div>
+      <div class="r-name" id="rName"></div>
+      <div class="r-sub" id="rSub"></div>
+    </div>
+  </div>
+
+  <div class="list-hdr">
+    <span class="list-label">Asistentes registrados</span>
+  </div>
+
+  <div class="att-list" id="attList">
+    <div class="att-empty">Apuntá la cámara al QR<br>del asistente para registrarlo</div>
+  </div>
+
+  <div class="bottom">
+    <div class="export-row">
+      <button class="btn-xl btn-excel" onclick="exportExcel()">↓ Excel</button>
+      <button class="btn-xl btn-pdf" onclick="exportPDF()">↓ PDF</button>
+    </div>
+    <button class="btn-reset" onclick="resetSession()">Nueva sesión / Borrar lista</button>
+  </div>
+</div>
+
+<script>
+const SESS_KEY = 'da_asistencia_v1';
+const CACHE_KEY = 'da_name_cache_v1';
+
+let attendance = [];
+let eventName = '';
+let scanner = null;
+let lastScan = 0;
+let rTimer = null;
+
+// ── INIT ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = getSaved();
+  if (saved) {
+    document.getElementById('resumeBtn').style.display = 'block';
+    document.getElementById('eventInput').value = saved.eventName || '';
+  }
+});
+
+function getSaved() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SESS_KEY));
+    return d && d.attendance && d.attendance.length > 0 ? d : null;
+  } catch { return null; }
+}
+
+function startNew() {
+  const name = document.getElementById('eventInput').value.trim();
+  if (!name) { document.getElementById('eventInput').focus(); return; }
+  eventName = name;
+  attendance = [];
+  save();
+  showScanner();
+}
+
+function resumeSession() {
+  const saved = getSaved();
+  if (!saved) return;
+  eventName = saved.eventName;
+  attendance = saved.attendance;
+  showScanner();
+}
+
+function showScanner() {
+  document.getElementById('setupScreen').style.display = 'none';
+  const sc = document.getElementById('scannerScreen');
+  sc.style.display = 'flex';
+  document.getElementById('hdrEvent').textContent = eventName;
+  renderList();
+  initCam();
+}
+
+// ── CAMERA ────────────────────────────────────────────────
+function initCam() {
+  if (scanner) return;
+  scanner = new Html5Qrcode('qr-reader');
+  scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 240, height: 240 } },
+    onScan,
+    null
+  ).catch(err => console.warn('Cam error:', err));
+}
+
+async function onScan(text) {
+  const now = Date.now();
+  if (now - lastScan < 2500) return;
+  lastScan = now;
+
+  // Validate pattern
+  const m = text.match(/\/v\/([a-f0-9]{8})\.html/i);
+  if (!m) {
+    showResult('err', '⚠️', 'QR no reconocido', 'No pertenece al sistema Destino Arena');
+    vibrate([80, 40, 80]);
+    return;
+  }
+  const code = m[1];
+
+  // Check duplicate
+  const dup = attendance.find(a => a.code === code);
+  if (dup) {
+    showResult('dup', '⚠️', dup.name, `Ya ingresó a las ${dup.time}`);
+    vibrate([80, 40, 80]);
+    return;
+  }
+
+  // Fetch name
+  showResult('ok', '⏳', 'Identificando...', '');
+  const name = await fetchName(code, text);
+  const time = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+  attendance.unshift({ code, name, time });
+  save();
+  renderList();
+  showResult('ok', '✅', name, `Ingresó a las ${time}`);
+  vibrate([200]);
+}
+
+async function fetchName(code, originalUrl) {
+  const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+  if (cache[code]) return cache[code];
+  try {
+    const vcfUrl = originalUrl.replace(/\.html$/i, '.vcf');
+    const res = await fetch(vcfUrl);
+    const txt = await res.text();
+    const fn = txt.match(/^FN:(.+)$/m);
+    const name = fn ? fn[1].trim() : `ID ${code}`;
+    cache[code] = name;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    return name;
+  } catch { return `ID ${code}`; }
+}
+
+// ── UI ────────────────────────────────────────────────────
+function showResult(type, icon, name, sub) {
+  const box = document.getElementById('resultBox');
+  box.className = `result-box show ${type}`;
+  document.getElementById('rIcon').textContent = icon;
+  document.getElementById('rName').textContent = name;
+  document.getElementById('rSub').textContent = sub;
+  clearTimeout(rTimer);
+  rTimer = setTimeout(() => box.classList.remove('show'), 4500);
+}
+
+function renderList() {
+  const n = attendance.length;
+  document.getElementById('hdrCount').textContent = `${n} registrado${n !== 1 ? 's' : ''}`;
+  const el = document.getElementById('attList');
+  if (n === 0) {
+    el.innerHTML = '<div class="att-empty">Apuntá la cámara al QR<br>del asistente para registrarlo</div>';
+    return;
+  }
+  el.innerHTML = attendance.map((a, i) => `
+    <div class="att-item">
+      <span class="i-num">${n - i}</span>
+      <span class="i-name">${a.name}</span>
+      <span class="i-time">${a.time}</span>
+    </div>`).join('');
+}
+
+function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
+
+// ── PERSISTENCE ───────────────────────────────────────────
+function save() {
+  localStorage.setItem(SESS_KEY, JSON.stringify({ eventName, attendance }));
+}
+
+// ── EXPORT EXCEL ──────────────────────────────────────────
+function exportExcel() {
+  if (!attendance.length) return alert('No hay asistentes registrados todavía.');
+  const rows = [['#', 'Nombre', 'Hora de ingreso']];
+  [...attendance].reverse().forEach((a, i) => rows.push([i + 1, a.name, a.time]));
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 5 }, { wch: 34 }, { wch: 16 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
+  XLSX.writeFile(wb, `Asistencia_${safe(eventName)}.xlsx`);
+}
+
+// ── EXPORT PDF ────────────────────────────────────────────
+function exportPDF() {
+  if (!attendance.length) return alert('No hay asistentes registrados todavía.');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  doc.setFillColor(10, 7, 16);
+  doc.rect(0, 0, 210, 297, 'F');
+
+  doc.setTextColor(196, 181, 253);
+  doc.setFontSize(9);
+  doc.text('ONLY BY DESTINO ARENA', 105, 16, { align: 'center' });
+
+  doc.setTextColor(247, 245, 251);
+  doc.setFontSize(20);
+  doc.setFont(undefined, 'bold');
+  doc.text('Lista de Asistencia', 105, 26, { align: 'center' });
+
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(147, 138, 163);
+  doc.text(eventName, 105, 34, { align: 'center' });
+
+  const fecha = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  doc.text(`${attendance.length} persona${attendance.length !== 1 ? 's' : ''} • Generado el ${fecha}`, 105, 41, { align: 'center' });
+
+  const rows = [...attendance].reverse().map((a, i) => [i + 1, a.name, a.time]);
+  doc.autoTable({
+    startY: 48,
+    head: [['#', 'Nombre', 'Hora de ingreso']],
+    body: rows,
+    theme: 'plain',
+    styles: { textColor: [247, 245, 251], fontSize: 10, cellPadding: 3.5 },
+    headStyles: { textColor: [196, 181, 253], fontStyle: 'bold', fontSize: 9, cellPadding: 4 },
+    alternateRowStyles: { fillColor: [22, 16, 31] },
+    columnStyles: { 0: { cellWidth: 12 }, 2: { cellWidth: 30 } },
+    margin: { left: 20, right: 20 },
+  });
+
+  doc.save(`Asistencia_${safe(eventName)}.pdf`);
+}
+
+function safe(s) { return s.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50); }
+
+// ── RESET ─────────────────────────────────────────────────
+function resetSession() {
+  if (attendance.length > 0 && !confirm(`¿Borrar la lista de ${attendance.length} persona${attendance.length !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
+  attendance = [];
+  eventName = '';
+  localStorage.removeItem(SESS_KEY);
+  if (scanner) { scanner.stop().catch(() => {}); scanner = null; }
+  document.getElementById('setupScreen').style.display = 'flex';
+  document.getElementById('scannerScreen').style.display = 'none';
+  document.getElementById('eventInput').value = '';
+  document.getElementById('resumeBtn').style.display = 'none';
+}
+</script>
+</body>
+</html>
