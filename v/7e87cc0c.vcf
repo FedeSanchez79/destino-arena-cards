@@ -1,6 +1,9 @@
 BEGIN:VCARD
 VERSION:3.0
-N:22;Pendiente;;;
-FN:Pendiente 22
+N:Paolini;Agustina;;;
+FN:Agustina Paolini
 ORG:Destino Arena - Embajador
+TEL;TYPE=CELL:2235343099
+EMAIL;TYPE=INTERNET:aguspaolini7@gmail.com
+URL;TYPE=Instagram:https://www.instagram.com/aguss.paolini/
 END:VCARD
