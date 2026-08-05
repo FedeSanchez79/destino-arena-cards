@@ -134,6 +134,7 @@ body{font-family:-apple-system,'Inter',sans-serif;background:var(--bg);color:var
 
 <script>
 const SESS_KEY  = 'da_asistencia_v2';
+const DEACTIVATED = new Set(['47bfab01','afb8fc22','f4f95096']);  
 const CACHE_KEY = 'da_name_cache_v1';
 
 let attendance = [];   // [{code, name, time, guests:[]}]
@@ -205,6 +206,10 @@ async function onScan(text) {
     vibrate([80,40,80]); return;
   }
   const code = m[1];
+    if (DEACTIVATED.has(code)) {
+  showResult('err','🚫','Credencial desactivada','Esta credencial no está activa en el sistema');
+  vibrate([80,40,80]); return;
+}
   const dup = attendance.find(a => a.code === code);
   if (dup) {
     showResult('dup','⚠️',dup.name,`Ya ingresó a las ${dup.time}`);
