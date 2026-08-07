@@ -1,6 +1,9 @@
 BEGIN:VCARD
 VERSION:3.0
-N:56;Pendiente;;;
-FN:Pendiente A
-ORG:Destino Arena - Embajador
+N:Sanchez;Federico;;;
+FN:Federico Sanchez
+ORG:Destino Arena - Administrador
+TEL;TYPE=CELL:1152622109
+EMAIL;TYPE=INTERNET:fedesanchez@gmail.com
+URL;TYPE=Instagram:https://www.instagram.com/fede.sanchez.ok/
 END:VCARD
