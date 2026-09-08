@@ -1,6 +1,7 @@
 BEGIN:VCARD
 VERSION:3.0
-N:18;Pendiente;;;
-FN:Pendiente 18
+N:Distrama;Lucas;;;
+FN:Lucas Distrama
 ORG:Destino Arena - Embajador
+EMAIL;TYPE=INTERNET:contacto.showme@gmail.com
 END:VCARD
